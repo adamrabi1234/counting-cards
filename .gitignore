@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.research/
+.figma-reference/
+.qa/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tsbuildinfo

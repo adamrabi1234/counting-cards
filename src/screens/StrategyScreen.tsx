@@ -1,0 +1,45 @@
+import { useRef, useState } from 'react';
+import { Check, Play, X } from 'lucide-react';
+import { card, DECK, randomInt, shuffled, type CardId } from '../engine/cards';
+import { ACTION_NAMES, ACTION_SHORT, handValue, legalActions, recommend, rulesSummary, value, type Action, type Rules } from '../engine/blackjack';
+import { useApp } from '../data/store';
+import { Card } from '../components/Card';
+import { RulesDialog } from '../components/RulesDialog';
+import { Button, Field, Heading, NumberField, Progress } from '../components/ui';
+import { useShortcuts } from '../hooks/useShortcuts';
+interface Situation { hand: CardId[]; dealer: CardId }
+export function makeSituation(filter: 'all' | 'hard' | 'soft' | 'pairs'): Situation {
+  const family = filter === 'all' ? (['hard', 'soft', 'pairs'] as const)[randomInt(3)] : filter;
+  const deck = shuffled(DECK);
+  let hand: CardId[];
+  if (family === 'pairs') { const first = deck[0]; const second = deck.find(c => c.id !== first.id && c.rank === first.rank)!; hand = [first.id, second.id]; }
+  else if (family === 'soft') { hand = [deck.find(c => c.rank === 'A')!.id, deck.find(c => value(c.rank) >= 2 && value(c.rank) <= 9)!.id]; }
+  else {
+    const first = deck.find(c => c.rank !== 'A')!, second = deck.find(c => c.rank !== 'A' && c.id !== first.id && c.rank !== first.rank)!;
+    hand = [first.id, second.id];
+  }
+  return { hand, dealer: deck.find(c => !hand.includes(c.id))!.id };
+}
+export default function StrategyScreen({ onExit }: { onExit: () => void }) {
+  const store = useApp(), rules = store.data.settings.rules;
+  const [config, setConfig] = useState(store.data.settings.strategy), [situation, setSituation] = useState<Situation | null>(null), [selected, setSelected] = useState<Action | null>(null), [number, setNumber] = useState(1), [score, setScore] = useState(0), [done, setDone] = useState(false), [table, setTable] = useState(false);
+  const began = useRef(0), guard = useRef(false);
+  const recommendation = situation ? recommend(situation.hand, situation.dealer, rules) : null;
+  function next() { if (situation && number >= config.rounds) { setDone(true); return; } setSituation(makeSituation(config.filter)); setSelected(null); setNumber(n => situation ? n + 1 : 1); guard.current = false; began.current = performance.now(); }
+  function start() { setNumber(1); setScore(0); setDone(false); setSituation(makeSituation(config.filter)); setSelected(null); guard.current = false; began.current = performance.now(); void store.update(s => ({ ...s, settings: { ...s.settings, strategy: config } })); }
+  function answer(action: Action) { if (!situation || !recommendation || guard.current) return; guard.current = true; setSelected(action); const correct = action === recommendation.action; setScore(s => s + Number(correct)); void store.addSession({ mode: 'strategy', correct: Number(correct), total: 1, durationMs: performance.now() - began.current, eligible: true, variant: config.filter, summary: `${situation.hand.join(' + ')} proti ${situation.dealer} · ${rulesSummary(rules)}` }); }
+  function applyRules(next: Rules) { void store.update(s => ({ ...s, settings: { ...s.settings, rules: next } })); setSituation(null); setSelected(null); setDone(false); }
+  useShortcuts({ ' ': !situation ? start : selected ? next : undefined, enter: selected ? next : undefined, escape: situation ? () => setSituation(null) : onExit, h: situation && !selected && legalActions(situation.hand, rules).includes('hit') ? () => answer('hit') : undefined, s: situation && !selected ? () => answer('stand') : undefined, d: situation && !selected && legalActions(situation.hand, rules).includes('double') ? () => answer('double') : undefined, r: situation && !selected && legalActions(situation.hand, rules).includes('surrender') ? () => answer('surrender') : undefined, p: situation && !selected && legalActions(situation.hand, rules).includes('split') ? () => answer('split') : undefined });
+  if (done) return <div className="page narrow empty"><Check size={42} className="gold" /><h1>Strategie procvičena</h1><p className="score-large mono">{score} / {config.rounds}</p><p>Správné tahy podle {rulesSummary(rules)}.</p><div className="row wrap"><Button onClick={() => { setDone(false); setSituation(null); }}>Nastavení</Button><Button variant="primary" onClick={start}>Další trénink</Button></div></div>;
+  return <div className="page"><Heading title="Základní strategie" description="Najdi správný tah pro svou ruku a dealerovu otevřenou kartu. Dealer už zkontroloval a nemá blackjack." back={situation ? () => setSituation(null) : onExit}><RulesDialog rules={rules} onApply={applyRules} /></Heading><div className="stack"><div className="row wrap between"><span className="badge gold">{rulesSummary(rules)}</span><Button onClick={() => setTable(v => !v)}>{table ? 'Skrýt tabulku' : 'Přehled strategie'}</Button></div>{table && <StrategyChart rules={rules} />}
+    {!situation ? <div className="strategy-setup panel stack"><h2>Procvičit rozhodování</h2><div className="fields"><Field label="Typ rukou"><select value={config.filter} onChange={e => setConfig(c => ({ ...c, filter: e.target.value as typeof config.filter }))}><option value="all">Všechny typy</option><option value="hard">Tvrdé součty</option><option value="soft">Měkké součty</option><option value="pairs">Páry</option></select></Field><NumberField label="Počet situací" value={config.rounds} onChange={rounds => setConfig(c => ({ ...c, rounds }))} min={1} max={100} /></div><Button variant="primary" onClick={start}><Play size={18} /> Začít trénink</Button><p className="muted"><small>Tabulky rozlišují 1, 2 a 4+ balíčků, H17/S17, zdvojnásobení, DAS a pozdní vzdání. Zdroj: <a href="https://wizardofodds.com/games/blackjack/strategy/calculator/" target="_blank" rel="noreferrer">Wizard of Odds</a>.</small></p></div> : <><Progress value={number - 1} max={config.rounds} /><div className="strategy-felt"><div className="hand-zone"><span className="eyebrow">Dealer</span><div className="hand-cards"><Card id={situation.dealer} size="large" /><Card back size="large" /></div></div><div className="table-inscription"><span>COUNTING CARDS</span><small>Trénuj správné rozhodnutí</small></div><div className="hand-zone"><span className="mono hand-total">{handValue(situation.hand).total} {handValue(situation.hand).soft ? 'měkkých' : 'tvrdých'}</span><div className="hand-cards">{situation.hand.map(id => <Card key={id} id={id} size="large" />)}</div><span className="eyebrow">Tvoje ruka · {number}/{config.rounds}</span></div></div>
+      {!selected ? <div className="action-grid">{legalActions(situation.hand, rules).map(action => <Button key={action} onClick={() => answer(action)}><kbd>{ACTION_SHORT[action]}</kbd>{ACTION_NAMES[action]}</Button>)}</div> : <div className="panel stack"><div className={`feedback-line ${selected === recommendation!.action ? 'success' : 'error'}`}>{selected === recommendation!.action ? <Check size={22} /> : <X size={22} />}<h2>{selected === recommendation!.action ? 'Správně.' : `Správně: ${ACTION_NAMES[recommendation!.action]}`}</h2></div><p>{recommendation!.explanation}</p><p className="muted">Tvoje volba: {ACTION_NAMES[selected]}.</p><Button variant="primary" onClick={next}>{number < config.rounds ? 'Další situace' : 'Dokončit'} <Play size={18} /></Button></div>}
+    </>}
+  </div></div>;
+}
+function StrategyChart({ rules }: { rules: Rules }) {
+  const [family, setFamily] = useState<'hard' | 'soft' | 'pairs'>('hard');
+  const upcards = ['2D', '3D', '4D', '5D', '6D', '7D', '8D', '9D', '10D', 'AD'] as CardId[];
+  const hands: { label: string; hand: CardId[] }[] = family === 'pairs' ? ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'A'].map(rank => ({ label: `${rank}, ${rank}`, hand: [`${rank}S`, `${rank}H`] as CardId[] })) : family === 'soft' ? [2, 3, 4, 5, 6, 7, 8, 9].map(n => ({ label: `A, ${n}`, hand: ['AS', `${n}H`] as CardId[] })) : Array.from({ length: 13 }, (_, i) => { const total = i + 5, a = Math.min(10, total - 2), b = total - a; return { label: String(total), hand: [`${a}S`, `${b}H`] as CardId[] }; });
+  return <div className="panel stack"><div className="chips">{(['hard', 'soft', 'pairs'] as const).map(f => <button type="button" className="chip" key={f} aria-pressed={family === f} onClick={() => setFamily(f)}>{f === 'hard' ? 'Tvrdé součty' : f === 'soft' ? 'Měkké součty' : 'Páry'}</button>)}</div><div className="strategy-chart"><table><caption>Doporučené tahy podle aktuálních pravidel</caption><thead><tr><th>Tvoje ruka</th>{upcards.map(id => <th key={id}>{card(id).rank}</th>)}</tr></thead><tbody>{hands.map(({ label, hand }) => <tr key={label}><th>{label}</th>{upcards.map(dealer => { const action = recommend(hand, dealer, rules).action; return <td key={dealer} className={`strategy-cell ${action}`} title={ACTION_NAMES[action]}>{ACTION_SHORT[action]}</td>; })}</tr>)}</tbody></table></div><p className="muted"><small>H vzít kartu · S stát · D zdvojnásobit · P rozdělit · R vzdát. Tabulka už zohledňuje dostupné tahy podle nastavených pravidel.</small></p></div>;
+}

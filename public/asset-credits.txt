@@ -1,0 +1,20 @@
+Counting Cards — asset and data credits
+
+Playing cards: public-domain Vector Playing Cards project,
+https://code.google.com/p/vector-playing-cards/
+Asset processing by Howard Yeh (2018), MIT:
+https://github.com/hayeah/playing-cards-assets
+License included at /cards/LICENSE.txt.
+SVGs optimized with SVGO without changing the artwork.
+
+Interface icons: Lucide, ISC license, https://lucide.dev
+Fonts: Fraunces, DM Sans and DM Mono, SIL Open Font License,
+self-hosted through Fontsource packages. Full software and font license notices are included at
+/third-party-notices.txt.
+
+Basic strategy reference: Wizard of Odds, Michael Shackleford,
+https://wizardofodds.com/games/blackjack/strategy/calculator/
+Table facts for American peek blackjack: 1, 2, 4+ decks, H17/S17,
+double-after-split and late surrender. No copied site interface.
+
+Visual concept developed in Figma Make for this project.

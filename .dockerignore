@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.research
+.figma-reference
+.qa
+coverage
+*.log
+.env*
