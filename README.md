@@ -2,6 +2,8 @@
 
 Česká aplikace pro trénink karetní paměti, vlastních PAO asociací, Hi-Lo počítání a základní blackjackové strategie. Design vznikl ve Figma Make a prošel samostatnou vizuální kontrolou. Aplikace slouží k procvičování; stůl používá pouze virtuální jednotky.
 
+**[Otevřít aplikaci](https://k8ltlryzwghy6sjfi0ggbda7.92.63.56.110.sslip.io)** · [Záznam nasazení](docs/deployment.md) · [Nezávislé testování a jeho rozsah](docs/thorough-test-report.md)
+
 ## Spuštění
 
 Vyžaduje Node.js 24 a npm.
