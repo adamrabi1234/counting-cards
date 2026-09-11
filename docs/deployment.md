@@ -18,7 +18,8 @@ Configured on 12 September 2026 in the user's Coolify instance.
 - Server: the existing `localhost` server
 - Build pack: Dockerfile, base directory `/`, Dockerfile `/Dockerfile`
 - Exposed port: `8080`; no public host-port mapping required
-- Automatic domain: https://k8ltlryzwghy6sjfi0ggbda7.92.63.56.110.sslip.io
+- Preferred domain: https://counting-cards.92.63.56.110.sslip.io
+- Original domain retained as a working alias: https://k8ltlryzwghy6sjfi0ggbda7.92.63.56.110.sslip.io
 - HTTP redirects to HTTPS; certificate resolver: Let's Encrypt
 - Enabled health check: `GET http://127.0.0.1:8080/healthz`, expected HTTP `200`
 - No database, server volume, environment variables or application secrets required.
@@ -41,5 +42,9 @@ A separate browser navigation to the public `/healthz` URL was blocked by the br
 ## Data and QA scope
 
 Training data is stored in the visitor's browser for this exact origin. It is not stored in the Docker container. Backups are exported/imported through Settings; moving domains does not migrate data automatically.
+
+The readable `counting-cards` hostname replaces the random hostname in public links. The original hostname remains available so existing users can export their local data and import the backup on the preferred address. Both use HTTPS and serve the same application.
+
+The hostname update was redeployed on 12 September 2026. The new container passed its health check on the first attempt. After the rolling update and certificate provisioning completed, the preferred HTTPS URL opened the application normally in Brave without bypassing a certificate warning.
 
 The [independent test report](thorough-test-report.md) records the tested journeys and remaining real-browser timing/file-transfer verification limits.
